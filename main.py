@@ -63,32 +63,13 @@ def generate_segment_by_type(audio_segment, segment_len, type_durations):
 
     for durations in type_durations:
         start, end = durations
+        start *= 1000
+        end *= 1000
 
-        segment.append(audio_segment[start: end])
+        if start < segment_len and end <= segment_len:
+            segment.append(audio_segment[start:end])
 
     return segment
-
-
-def generate_individual_segments(audio_segment, segment_len, bees, nobees):
-    bee_segment = AudioSegment.empty()
-    nobee_segment = AudioSegment.empty()
-
-    for d in bees:
-        start, end = d
-
-        if start < segment_len and end < segment_len:
-            bee_segment += audio_segment[start:end]
-
-    for d in nobees:
-        start, end = d
-
-        if start < segment_len and end < segment_len:
-            nobee_segment += audio_segment[start:end]
-
-    print(f'Bee {len(bee_segment)}')
-    print(f'No Bee {len(nobee_segment)}')
-
-    return bee_segment, nobee_segment
 
 
 def join_segments(segments_list):
@@ -107,45 +88,89 @@ def split_audio_file(audio_filename, bees, nobees, folder_path):
     bee_segment = generate_segment_by_type(audio_segment, segment_len, bees)
     nobee_segment = generate_segment_by_type(audio_segment, segment_len, nobees)
 
-    generate_individual_segments(audio_segment, segment_len, bees, nobees)
-
     joined_bee_segments = join_segments(bee_segment)
     joined_nobee_segments = join_segments(nobee_segment)
-
-    print(len(joined_bee_segments))
-    print(len(joined_nobee_segments))
-
-    bee_path = os.path.join(MISSING_QUEEN_PATH, 'split_files', 'bee', '1.wav')
-    nobee_path = os.path.join(MISSING_QUEEN_PATH, 'split_files', 'nobee', '1.wav')
-
-    joined_bee_segments.export(bee_path, format='wav')
-    joined_nobee_segments.export(nobee_path, format='wav')
 
     return joined_bee_segments, joined_nobee_segments
 
 
 def save_segment(name, segment, folder_path, folder_type):
     path = os.path.join(folder_path, 'split_files', folder_type, name)
+    print(f'Saving in - {path}')
     segment.export(path, format='wav')
 
 
-if __name__ == '__main__':
+def split_audio_by_type():
     audio_filenames, lab_filenames = load_filenames(MISSING_QUEEN_PATH)
-    print(audio_filenames)
-    print(lab_filenames)
     lab_paths = generate_lab_paths(lab_filenames, MISSING_QUEEN_PATH)
-    print(lab_paths)
-    data = open_lab_file(lab_paths[0])
-    print(data)
-    bee, nobee = organize_file_data(data)
-    print(bee)
-    print(nobee)
-    bee_path = os.path.join('split_files', 'bee')
-    nobee_path = os.path.join('split_files', 'nobee')
-    bee_segment, nobee_segment = split_audio_file(audio_filenames[0], bee, nobee, MISSING_QUEEN_PATH)
 
-    print(bee_segment)
-    print(nobee_segment)
+    for i, lab_path in enumerate(lab_paths):
+        data = open_lab_file(lab_path)
+        bee, nobee = organize_file_data(data)
 
+        bee_segment, nobee_segment = split_audio_file(audio_filenames[i], bee, nobee, MISSING_QUEEN_PATH)
+
+        save_segment(f'{i}.wav', bee_segment, MISSING_QUEEN_PATH, 'bee')
+        save_segment(f'{i}.wav', nobee_segment, MISSING_QUEEN_PATH, 'nobee')
+
+
+def get_audio_files_list(path):
+    audio_files = list()
+
+    for _, _, filenames in os.walk(path):
+        audio_files = filenames
+        break
+
+    print(audio_files)
+
+    return audio_files
+
+
+def open_audio_files(path, audio_files):
+    segments = list()
+
+    for audio_file in audio_files:
+        segments.append(AudioSegment.from_wav(os.path.join(path, audio_file)))
+
+    print(segments)
+
+    return segments
+
+
+def main():
+    bee_files_path = os.path.join(MISSING_QUEEN_PATH, 'split_files', 'bee')
+    nobee_files_path = os.path.join(MISSING_QUEEN_PATH, 'split_files', 'nobee')
+
+    bee_audio_files = get_audio_files_list(bee_files_path)
+    bee_segments = open_audio_files(bee_files_path, bee_audio_files)
+    bee_combined_segments = join_segments(bee_segments)
+    print(len(bee_combined_segments))
+    save_segment('missing_queenbee_bee.wav', bee_combined_segments, MISSING_QUEEN_PATH, 'full')
+
+    # nobee_audio_files = get_audio_files_list(nobee_files_path)
+    # nobee_segments = open_audio_files(nobee_files_path, nobee_audio_files)
+    # nobee_combined_segments = join_segments(nobee_segments)
+    # save_segment('missing_queenbee_nobee.wav', nobee_combined_segments, MISSING_QUEEN_PATH, 'full')
+
+
+if __name__ == '__main__':
+    main()
+    # audio_filenames, lab_filenames = load_filenames(MISSING_QUEEN_PATH)
+    # print(audio_filenames)
+    # print(lab_filenames)
+    # lab_paths = generate_lab_paths(lab_filenames, MISSING_QUEEN_PATH)
+    # print(lab_paths)
+    # data = open_lab_file(lab_paths[0])
+    # print(data)
+    # bee, nobee = organize_file_data(data)
+    # print(bee)
+    # print(nobee)
+    # bee_path = os.path.join('split_files', 'bee')
+    # nobee_path = os.path.join('split_files', 'nobee')
+    # bee_segment, nobee_segment = split_audio_file(audio_filenames[0], bee, nobee, MISSING_QUEEN_PATH)
+    #
+    # print(bee_segment)
+    # print(nobee_segment)
+    #
     # save_segment('1.wav', bee_segment, MISSING_QUEEN_PATH, 'bee')
     # save_segment('1.wav', nobee_segment, MISSING_QUEEN_PATH, 'nobee')
